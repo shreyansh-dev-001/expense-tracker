@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expense Tracker</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: monospace;
+      background: #f5f5f5;
+      color: #111;
+      min-height: 100vh;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      border-bottom: 2px solid #111;
+      background: #fff;
+    }
+    .tab-btn {
+      padding: 14px 28px;
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      color: #888;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      color: #111;
+      border-bottom-color: #111;
+      background: #eaeaea;
+    }
+    .tab-btn:hover:not(.active) {
+      color: #111;
+      background: #f4f4f4;
+      border-bottom: 2px solid #111;
+    }
+
+    /* ── Panels ── */
+    .panel { display: none; padding: 32px 24px; max-width: 560px; margin: 0 auto; }
+    .panel.active { display: block; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      color: #555;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      font-family: monospace;
+      font-size: 15px;
+      border: 2px solid #ccc;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #111; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* ── Category Chips ── */
+    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      padding: 8px 16px;
+      font-family: monospace;
+      font-size: 13px;
+      border: 2px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .chip:hover { border-color: #888; }
+    .chip.active {
+      border-color: #111;
+      background: #111;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-block;
+      padding: 11px 22px;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border: 2px solid #111;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn:hover { background: #fff; color: #111; }
+    .btn.secondary { background: #fff; color: #111; }
+    .btn.secondary:hover { background: #111; color: #fff; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:disabled:hover { background: #111; color: #fff; }
+    .btn.secondary:disabled:hover { background: #fff; color: #111; }
+
+    /* ── Action Row ── */
+    .action-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .sync-status { font-size: 11px; color: #666; margin-top: 8px; width: 100%; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      background: #111;
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-family: monospace;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 1000;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #c0392b; }
+
+    /* ── Settings: Category List ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #555;
+      margin-bottom: 12px;
+    }
+    .cat-list { margin-bottom: 24px; }
+    .cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .cat-id { font-size: 12px; color: #888; width: 28px; flex-shrink: 0; text-align: right; }
+    .cat-row input { flex: 1; }
+    .cat-row .btn { padding: 10px 14px; flex-shrink: 0; }
+    .add-cat-row { display: flex; gap: 8px; margin-bottom: 32px; }
+    .add-cat-row input { flex: 1; }
+  </style>
+</head>
+
+<body>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('add')">Add Expense</button>
+    <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+  </div>
+
+  <!-- Add Expense Panel -->
+  <div id="panel-add" class="panel active">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="expDate" />
+    </div>
+    <div class="field">
+      <label>Amount (₹)</label>
+      <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <div id="categoryChips" class="chip-group"></div>
+    </div>
+    <div class="action-row">
+      <button class="btn" onclick="addExpense()">Add Expense</button>
+      <button class="btn secondary" id="syncBtn" onclick="handleSyncClick()">Sync to Sheets</button>
+      <div class="sync-status" id="syncStatus">Local data only. Not synced.</div>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="panel-settings" class="panel">
+    <div class="section-title">Categories</div>
+    <div class="cat-list" id="categoryList"></div>
+    <div class="add-cat-row">
+      <input type="text" id="newCategoryName" placeholder="New category name..." />
+      <button class="btn" onclick="addCategory()">Add</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+
+    // ════════════════════════════════════════════
+    // CONFIG
+    // Edit these values to point to your own
+    // Google Cloud project and spreadsheet.
+    // ════════════════════════════════════════════
+
+    const GOOGLE_CLIENT_ID = '78305666002-hf2hesurspn0l46cpta4qtpnb7g3jm3g.apps.googleusercontent.com';
+    const GOOGLE_SHEET_ID  = '1zHokPdLhI9wUjZW-ynMfM6PfU-IeXu2azTVsnluXZx8';
+    const SHEETS_SCOPE     = 'https://www.googleapis.com/auth/spreadsheets';
+
+    // Sheet tab names inside the workbook
+    const SHEET_EXPENSES   = 'logs';
+    const SHEET_CATEGORIES = 'categories';
+
+
+    // ════════════════════════════════════════════
+    // APP STATE
+    // Central place for all runtime state.
+    // ════════════════════════════════════════════
+
+    const state = {
+      db:                 null,  // IndexedDB connection
+      googleAccessToken:  null,  // Set after Google sign-in
+      selectedCategoryId: 0,     // Which chip is highlighted on the Add form
+    };
+
+
+    // ════════════════════════════════════════════
+    // DOM HELPERS
+    // Tiny wrappers so we don't repeat
+    // document.getElementById everywhere.
+    // ════════════════════════════════════════════
+
+    const getEl    = (id)       => document.getElementById(id);
+    const setText  = (id, text) => { getEl(id).textContent = text; };
+    const setHTML  = (id, html) => { getEl(id).innerHTML   = html; };
+    const getValue = (id)       => getEl(id).value;
+    const setValue = (id, val)  => { getEl(id).value = val; };
+    const disable  = (id)       => { getEl(id).disabled = true; };
+    const enable   = (id)       => { getEl(id).disabled = false; };
+
+
+    // ════════════════════════════════════════════
+    // TOAST NOTIFICATIONS
+    // Brief message at the top of the screen.
+    // Pass isError=true to show it in red.
+    // ════════════════════════════════════════════
+
+    let toastTimer;
+
+    function showToast(message, isError = false) {
+      const el = getEl('toast');
+      el.textContent = message;
+      el.className   = 'show' + (isError ? ' error' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.className = ''; }, 2800);
+    }
+
+
+    // ════════════════════════════════════════════
+    // TABS
+    // Switches which panel is visible.
+    // ════════════════════════════════════════════
+
+    function switchTab(tabName) {
+      const tabOrder = ['add', 'settings'];
+
+      // Highlight the correct tab button
+      document.querySelectorAll('.tab-btn').forEach((btn, index) => {
+        btn.classList.toggle('active', tabOrder[index] === tabName);
+      });
+
+      // Show the correct panel, hide all others
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+      getEl('panel-' + tabName).classList.add('active');
+
+      // Side effects per tab
+      if (tabName === 'settings') renderCategorySettings();
+      if (tabName === 'add')      getEl('expAmount').focus();
+    }
+
+
+    // ════════════════════════════════════════════
+    // INDEXEDDB — LOW-LEVEL HELPERS
+    // Wrap the verbose IndexedDB API into simple
+    // async functions.
+    // ════════════════════════════════════════════
+
+    function connectToDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('ExpenseTracker', 1);
+
+        // Runs once on first launch (or if DB version changes)
+        request.onupgradeneeded = (event) => {
+          const database = event.target.result;
+
+          if (!database.objectStoreNames.contains('expenses')) {
+            const expenseStore = database.createObjectStore('expenses', { keyPath: 'timestamp' });
+            expenseStore.createIndex('date', 'date', { unique: false });
+          }
+
+          if (!database.objectStoreNames.contains('categories')) {
+            database.createObjectStore('categories', { keyPath: 'id' });
+          }
+        };
+
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror   = (event) => reject(event.target.error);
+      });
+    }
+
+    // Read one record by key, or all records if no key given
+    function dbRead(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const transaction = state.db.transaction(storeName, 'readonly');
+        const store       = transaction.objectStore(storeName);
+        const request     = (key !== undefined) ? store.get(key) : store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror   = () => reject(request.error);
+      });
+    }
+
+    // Insert or update a record
+    function dbWrite(storeName, record) {
+      return new Promise((resolve, reject) => {
+        const transaction = state.db.transaction(storeName, 'readwrite');
+        const store       = transaction.objectStore(storeName);
+        const request     = store.put(record);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror   = () => reject(request.error);
+      });
+    }
+
+    // Delete a record by key
+    function dbDelete(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const transaction = state.db.transaction(storeName, 'readwrite');
+        const store       = transaction.objectStore(storeName);
+        const request     = store.delete(key);
+        request.onsuccess = () => resolve();
+        request.onerror   = () => reject(request.error);
+      });
+    }
+
+
+    // ════════════════════════════════════════════
+    // INDEXEDDB — NAMED ACCESSORS
+    // Semantic wrappers so callers don't need to
+    // know store names or key structures.
+    // ════════════════════════════════════════════
+
+    const getAllExpenses   = ()   => dbRead('expenses');
+    const getAllCategories = ()   => dbRead('categories');
+    const getCategoryById = (id) => dbRead('categories', id);
+    const saveExpense     = (exp) => dbWrite('expenses', exp);
+    const saveCategory    = (cat) => dbWrite('categories', cat);
+    const deleteCategoryById = (id) => dbDelete('categories', id);
+
+    // Returns all categories sorted by ID (Misc/0 always first)
+    async function getSortedCategories() {
+      const categories = await getAllCategories();
+      return categories.sort((a, b) => a.id - b.id);
+    }
+
+    // Returns the next available category ID (max existing + 1)
+    async function getNextCategoryId() {
+      const categories = await getAllCategories();
+      const highestId  = categories.reduce((max, cat) => Math.max(max, cat.id), -1);
+      return highestId + 1;
+    }
+
+
+    // ════════════════════════════════════════════
+    // DATE HELPER
+    // Returns today as YYYY-MM-DD in local timezone.
+    // (new Date().toISOString() would give UTC which
+    // can show yesterday's date before 5:30am IST)
+    // ════════════════════════════════════════════
+
+    function getTodayString() {
+      const today = new Date();
+      const year  = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day   = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+
+    // ════════════════════════════════════════════
+    // ADD EXPENSE
+    // Reads + validates the form, saves to DB,
+    // then resets the amount field.
+    // ════════════════════════════════════════════
+
+    async function addExpense() {
+      const date     = getValue('expDate');
+      const amount   = parseFloat(getValue('expAmount'));
+      const category = state.selectedCategoryId;
+
+      if (!date)                        return showToast('Please pick a date.', true);
+      if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', true);
+
+      const newExpense = {
+        timestamp: new Date().toISOString(), // Unique key
+        date,
+        amount,
+        category,
+      };
+
+      await saveExpense(newExpense);
+
+      // Keep date + category for quick repeat entry, just clear the amount
+      setValue('expAmount', '');
+      getEl('expAmount').focus();
+
+      showToast('Expense added!');
+    }
+
+
+    // ════════════════════════════════════════════
+    // CATEGORY CHIPS (Add Expense tab)
+    // Renders one chip per category. The active
+    // chip reflects state.selectedCategoryId.
+    // ════════════════════════════════════════════
+
+    async function renderCategoryChips() {
+      const categories = await getSortedCategories();
+
+      // Fall back to Misc if the selected category no longer exists
+      const selectedStillExists = categories.some(c => c.id === state.selectedCategoryId);
+      if (!selectedStillExists) state.selectedCategoryId = 0;
+
+      const chipsHTML = categories.map(cat => {
+        const isActive = cat.id === state.selectedCategoryId;
+        return `<div class="chip ${isActive ? 'active' : ''}" onclick="selectCategory(${cat.id})">${cat.name}</div>`;
+      }).join('');
+
+      setHTML('categoryChips', chipsHTML);
+    }
+
+    function selectCategory(categoryId) {
+      state.selectedCategoryId = categoryId;
+      renderCategoryChips(); // Re-render to move the "active" highlight
+    }
+
+
+    // ════════════════════════════════════════════
+    // CATEGORY SETTINGS (Settings tab)
+    // Editable list with rename + delete per row.
+    // ════════════════════════════════════════════
+
+    async function renderCategorySettings() {
+      const categories = await getSortedCategories();
+
+      const rowsHTML = categories.map(cat => {
+        const canDelete    = cat.id !== 0; // Misc (id=0) is permanent
+        const deleteButton = canDelete
+          ? `<button class="btn secondary" onclick="handleDeleteCategory(${cat.id})">✕</button>`
+          : '';
+
+        return `
+          <div class="cat-row">
+            <span class="cat-id">${cat.id}</span>
+            <input type="text" id="cat-name-${cat.id}" value="${cat.name}" />
+            <button class="btn secondary" onclick="handleRenameCategory(${cat.id})">Save</button>
+            ${deleteButton}
+          </div>
+        `;
+      }).join('');
+
+      setHTML('categoryList', rowsHTML);
+    }
+
+    async function handleRenameCategory(categoryId) {
+      const newName = getValue('cat-name-' + categoryId).trim();
+      if (!newName) return showToast('Name cannot be empty.', true);
+
+      const category = await getCategoryById(categoryId);
+      category.name  = newName;
+      await saveCategory(category);
+
+      await renderCategoryChips(); // Keep chips in sync
+      showToast('Category updated.');
+    }
+
+    async function handleDeleteCategory(categoryId) {
+      if (categoryId === 0) return showToast('Cannot delete Misc.', true);
+
+      await deleteCategoryById(categoryId);
+
+      // Reassign any expenses in this category to Misc (id=0)
+      const allExpenses       = await getAllExpenses();
+      const affectedExpenses  = allExpenses.filter(exp => exp.category === categoryId);
+      for (const expense of affectedExpenses) {
+        expense.category = 0;
+        await saveExpense(expense);
+      }
+
+      // If the deleted category was selected, fall back to Misc
+      if (state.selectedCategoryId === categoryId) state.selectedCategoryId = 0;
+
+      await renderCategorySettings();
+      await renderCategoryChips();
+
+      const movedCount = affectedExpenses.length;
+      showToast(
+        movedCount > 0
+          ? `Category deleted. ${movedCount} expense(s) moved to Misc.`
+          : 'Category deleted.'
+      );
+    }
+
+    async function addCategory() {
+      const input   = getEl('newCategoryName');
+      const newName = input.value.trim();
+      if (!newName) return showToast('Please enter a category name.', true);
+
+      const nextId = await getNextCategoryId();
+      await saveCategory({ id: nextId, name: newName });
+
+      input.value = '';
+      await renderCategorySettings();
+      await renderCategoryChips();
+      showToast('Category added.');
+    }
+
+
+    // ════════════════════════════════════════════
+    // GOOGLE SHEETS — LOW-LEVEL REQUEST
+    // All Sheets API calls go through here.
+    // Only sends Content-Type when there's a body
+    // to avoid a CORS preflight on bodyless POSTs.
+    // ════════════════════════════════════════════
+
+    async function sheetsApiRequest(path, method = 'GET', body = null) {
+      const headers = { 'Authorization': 'Bearer ' + state.googleAccessToken };
+      if (body) headers['Content-Type'] = 'application/json';
+
+      let response;
+      try {
+        response = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}${path}`,
+          { method, headers, body: body ? JSON.stringify(body) : null }
+        );
+      } catch (networkError) {
+        throw new Error(`Network error: ${networkError.message}`);
+      }
+
+      const responseText = await response.text();
+
+      // Surface a readable error message from the API if something went wrong
+      if (!response.ok) {
+        let errorMessage = responseText;
+        try {
+          const parsed = JSON.parse(responseText);
+          if (parsed.error?.message) errorMessage = parsed.error.message;
+        } catch { /* keep raw text if response isn't JSON */ }
+        throw new Error(`Sheets API error (${response.status}): ${errorMessage}`);
+      }
+
+      try {
+        return JSON.parse(responseText || '{}');
+      } catch {
+        throw new Error(`Unexpected non-JSON response: ${responseText}`);
+      }
+    }
+
+
+    // ════════════════════════════════════════════
+    // GOOGLE SHEETS — NAMED OPERATIONS
+    // Higher-level helpers built on sheetsApiRequest.
+    // ════════════════════════════════════════════
+
+    // Wipe a sheet then write fresh rows starting from A1
+    async function overwriteSheet(sheetName, rows) {
+      await sheetsApiRequest(`/values/${sheetName}!A1:Z10000:clear`, 'POST');
+      await sheetsApiRequest(
+        `/values/${sheetName}!A1?valueInputOption=RAW`,
+        'PUT',
+        { values: rows }
+      );
+    }
+
+    // Read all data rows from a sheet (skips the header row)
+    async function readSheetRows(sheetName, columnRange) {
+      const response = await sheetsApiRequest(`/values/${sheetName}!${columnRange}`);
+      const allRows  = response.values || [];
+      return allRows.slice(1); // Row 0 is the header
+    }
+
+    // Fetch and parse expenses from the sheet into objects
+    async function fetchExpensesFromSheet() {
+      const rows = await readSheetRows(SHEET_EXPENSES, 'A:D');
+      return rows
+        .filter(row => row.length >= 4)
+        .map(row => ({
+          timestamp: row[0],
+          date:      row[1],
+          amount:    parseFloat(row[2]),
+          category:  parseInt(row[3]),
+        }));
+    }
+
+    // Fetch and parse categories from the sheet into objects
+    async function fetchCategoriesFromSheet() {
+      const rows = await readSheetRows(SHEET_CATEGORIES, 'A:B');
+      return rows
+        .filter(row => row.length >= 2)
+        .map(row => ({
+          id:   parseInt(row[0]),
+          name: row[1],
+        }));
+    }
+
+
+    // ════════════════════════════════════════════
+    // SYNC — MERGE LOGIC
+    // Combines two lists into one using a key function.
+    // Remote items are added first; local items overwrite
+    // on conflict — so local always wins.
+    // ════════════════════════════════════════════
+
+    function mergeByKey(localItems, remoteItems, keyFn) {
+      const merged = new Map();
+      remoteItems.forEach(item => merged.set(keyFn(item), item)); // Remote goes in first
+      localItems.forEach(item  => merged.set(keyFn(item), item)); // Local overwrites
+      return Array.from(merged.values());
+    }
+
+
+    // ════════════════════════════════════════════
+    // SYNC — MAIN FLOW
+    // 1. Pull from Sheets
+    // 2. Merge with local (local wins on conflicts)
+    // 3. Save merged data back to local DB
+    // 4. Push merged data up to Sheets
+    // ════════════════════════════════════════════
+
+    async function syncToSheets() {
+      // Step 1: Pull remote data
+      setSyncStatus('Pulling from Google Sheets...');
+      const remoteExpenses   = await fetchExpensesFromSheet();
+      const remoteCategories = await fetchCategoriesFromSheet();
+
+      // Step 2: Merge with local data
+      const localExpenses    = await getAllExpenses();
+      const localCategories  = await getAllCategories();
+
+      const mergedExpenses   = mergeByKey(localExpenses, remoteExpenses, e => e.timestamp);
+      const mergedCategories = mergeByKey(localCategories, remoteCategories, c => c.id);
+
+      // Sort for consistency
+      mergedExpenses.sort((a, b)   => new Date(a.timestamp) - new Date(b.timestamp));
+      mergedCategories.sort((a, b) => a.id - b.id);
+
+      // Step 3: Persist merged data locally
+      setSyncStatus('Saving merged data locally...');
+      for (const expense  of mergedExpenses)   await saveExpense(expense);
+      for (const category of mergedCategories) await saveCategory(category);
+      await renderCategoryChips();
+
+      // Step 4: Push merged data back to Sheets
+      setSyncStatus('Pushing to Google Sheets...');
+
+      const expenseRows = [
+        ['timestamp', 'date', 'amount', 'category'],
+        ...mergedExpenses.map(e => [e.timestamp, e.date, e.amount, e.category]),
+      ];
+      const categoryRows = [
+        ['id', 'name'],
+        ...mergedCategories.map(c => [c.id, c.name]),
+      ];
+
+      await overwriteSheet(SHEET_EXPENSES,   expenseRows);
+      await overwriteSheet(SHEET_CATEGORIES, categoryRows);
+
+      const time = new Date().toLocaleTimeString();
+      setSyncStatus(`Last synced at ${time} — ${mergedExpenses.length} expense(s), ${mergedCategories.length} category/ies.`);
+      showToast('Synced successfully!');
+    }
+
+
+    // ════════════════════════════════════════════
+    // SYNC — BUTTON HANDLER
+    // First click: signs in, then syncs.
+    // Subsequent clicks: syncs directly.
+    // ════════════════════════════════════════════
+
+    function handleSyncClick() {
+      disable('syncBtn');
+
+      if (!state.googleAccessToken) {
+        setSyncStatus('Waiting for Google sign-in...');
+
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope:     SHEETS_SCOPE,
+          callback:  async (response) => {
+            if (response.error) {
+              showToast('Sign-in failed: ' + response.error, true);
+              enable('syncBtn');
+              return;
+            }
+            state.googleAccessToken = response.access_token;
+            showToast('Signed in! Starting sync...');
+            await runSync();
+          },
+        });
+
+        tokenClient.requestAccessToken();
+      } else {
+        runSync();
+      }
+    }
+
+    // Runs the sync and handles any errors that come out of it
+    async function runSync() {
+      try {
+        await syncToSheets();
+      } catch (error) {
+        showToast('Sync failed.', true);
+        getEl('syncStatus').innerHTML =
+          `Sync failed.<pre style="margin-top:8px;font-size:11px;color:#c0392b;white-space:pre-wrap;">${error.message}</pre>`;
+      } finally {
+        enable('syncBtn');
+      }
+    }
+
+    function setSyncStatus(message) {
+      setText('syncStatus', message);
+    }
+
+
+    // ════════════════════════════════════════════
+    // INIT
+    // Runs once on page load.
+    // ════════════════════════════════════════════
+
+    async function init() {
+      state.db = await connectToDatabase();
+
+      // Seed a default "Misc" category on first launch
+      const existingCategories = await getAllCategories();
+      if (existingCategories.length === 0) {
+        await saveCategory({ id: 0, name: 'Misc' });
+      }
+
+      // Default date to today in local timezone
+      setValue('expDate', getTodayString());
+
+      // Submit expense on Enter key from the amount field
+      getEl('expAmount').addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addExpense();
+        }
+      });
+
+      await renderCategoryChips();
+      getEl('expAmount').focus();
+    }
+
+    init();
+
+  </script>
+</body>
+
+</html>
