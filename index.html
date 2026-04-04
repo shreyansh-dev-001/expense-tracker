@@ -7,12 +7,18 @@
   <title>Expense Tracker</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: monospace;
-      background: #f5f5f5;
-      color: #111;
+      background: #0f0f0f;
+      color: #e8e8e8;
       min-height: 100vh;
     }
 
@@ -20,9 +26,10 @@
     .tabs {
       display: flex;
       justify-content: center;
-      border-bottom: 2px solid #111;
-      background: #fff;
+      border-bottom: 2px solid #333;
+      background: #1a1a1a;
     }
+
     .tab-btn {
       padding: 14px 28px;
       font-family: monospace;
@@ -34,27 +41,40 @@
       border-bottom: 3px solid transparent;
       background: transparent;
       cursor: pointer;
-      color: #888;
+      color: #555;
       margin-bottom: -2px;
       transition: all 0.15s;
     }
+
     .tab-btn.active {
-      color: #111;
-      border-bottom-color: #111;
-      background: #eaeaea;
+      color: #e8e8e8;
+      border-bottom-color: #e8e8e8;
+      background: #242424;
     }
+
     .tab-btn:hover:not(.active) {
-      color: #111;
-      background: #f4f4f4;
-      border-bottom: 2px solid #111;
+      color: #aaa;
+      background: #1f1f1f;
+      border-bottom-color: #444;
     }
 
     /* ── Panels ── */
-    .panel { display: none; padding: 32px 24px; max-width: 560px; margin: 0 auto; }
-    .panel.active { display: block; }
+    .panel {
+      display: none;
+      padding: 32px 24px;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .panel.active {
+      display: block;
+    }
 
     /* ── Form ── */
-    .field { margin-bottom: 20px; }
+    .field {
+      margin-bottom: 20px;
+    }
+
     label {
       display: block;
       font-size: 11px;
@@ -62,41 +82,68 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 6px;
-      color: #555;
+      color: #666;
     }
+
     input {
       width: 100%;
       padding: 10px 12px;
       font-family: monospace;
       font-size: 15px;
-      border: 2px solid #ccc;
-      background: #fff;
+      border: 2px solid #2e2e2e;
+      background: #1a1a1a;
+      color: #e8e8e8;
       outline: none;
       transition: border-color 0.15s;
     }
-    input:focus { border-color: #111; }
+
+    input:focus {
+      border-color: #e8e8e8;
+    }
+
     input[type=number]::-webkit-outer-spin-button,
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type=number] { -moz-appearance: textfield; }
+    input[type=number]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    /* Date input icon color fix for dark backgrounds */
+    input[type=date]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+    }
 
     /* ── Category Chips ── */
-    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .chip {
       padding: 8px 16px;
       font-family: monospace;
       font-size: 13px;
-      border: 2px solid #ccc;
-      background: #fff;
+      border: 2px solid #2e2e2e;
+      background: #1a1a1a;
+      color: #e8e8e8;
       cursor: pointer;
       user-select: none;
       transition: all 0.15s;
     }
-    .chip:hover { border-color: #888; }
+
+    .chip:hover {
+      border-color: #555;
+    }
+
     .chip.active {
-      border-color: #111;
-      background: #111;
-      color: #fff;
-      font-weight: bold;
+      border-color: #e8e8e8;
+      background: #1a1a1a;
+      color: #e8e8e8;
+      font-weight: normal;
     }
 
     /* ── Buttons ── */
@@ -108,22 +155,30 @@
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1px;
-      border: 2px solid #111;
-      background: #111;
-      color: #fff;
+      border: 2px solid #e8e8e8;
+      background: transparent;
+      color: #e8e8e8;
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
     }
-    .btn:hover { background: #fff; color: #111; }
-    .btn.secondary { background: #fff; color: #111; }
-    .btn.secondary:hover { background: #111; color: #fff; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn:disabled:hover { background: #111; color: #fff; }
-    .btn.secondary:disabled:hover { background: #fff; color: #111; }
+    .btn:hover { background: #e8e8e8; color: #0f0f0f; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn:disabled:hover { background: transparent; color: #e8e8e8; }
 
     /* ── Action Row ── */
-    .action-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .sync-status { font-size: 11px; color: #666; margin-top: 8px; width: 100%; }
+    .action-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .sync-status {
+      font-size: 11px;
+      color: #555;
+      margin-top: 8px;
+      width: 100%;
+    }
 
     /* ── Toast ── */
     #toast {
@@ -131,8 +186,8 @@
       top: 24px;
       left: 50%;
       transform: translateX(-50%) translateY(-80px);
-      background: #111;
-      color: #fff;
+      background: #e8e8e8;
+      color: #0f0f0f;
       padding: 10px 20px;
       font-size: 13px;
       font-family: monospace;
@@ -142,8 +197,16 @@
       white-space: nowrap;
       z-index: 1000;
     }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    #toast.error { background: #c0392b; }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #toast.error {
+      background: #c0392b;
+      color: #fff;
+    }
 
     /* ── Settings: Category List ── */
     .section-title {
@@ -151,16 +214,47 @@
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #555;
+      color: #666;
       margin-bottom: 12px;
     }
-    .cat-list { margin-bottom: 24px; }
-    .cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .cat-id { font-size: 12px; color: #888; width: 28px; flex-shrink: 0; text-align: right; }
-    .cat-row input { flex: 1; }
-    .cat-row .btn { padding: 10px 14px; flex-shrink: 0; }
-    .add-cat-row { display: flex; gap: 8px; margin-bottom: 32px; }
-    .add-cat-row input { flex: 1; }
+
+    .cat-list {
+      margin-bottom: 24px;
+    }
+
+    .cat-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .cat-id {
+      font-size: 12px;
+      color: #555;
+      width: 28px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .cat-row input {
+      flex: 1;
+    }
+
+    .cat-row .btn {
+      padding: 10px 14px;
+      flex-shrink: 0;
+    }
+
+    .add-cat-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    .add-cat-row input {
+      flex: 1;
+    }
   </style>
 </head>
 
@@ -187,7 +281,7 @@
     </div>
     <div class="action-row">
       <button class="btn" onclick="addExpense()">Add Expense</button>
-      <button class="btn secondary" id="syncBtn" onclick="handleSyncClick()">Sync to Sheets</button>
+      <button class="btn" id="syncBtn" onclick="handleSyncClick()">Sync to Sheets</button>
       <div class="sync-status" id="syncStatus">Local data only. Not synced.</div>
     </div>
   </div>
@@ -213,11 +307,11 @@
     // ════════════════════════════════════════════
 
     const GOOGLE_CLIENT_ID = '78305666002-hf2hesurspn0l46cpta4qtpnb7g3jm3g.apps.googleusercontent.com';
-    const GOOGLE_SHEET_ID  = '1zHokPdLhI9wUjZW-ynMfM6PfU-IeXu2azTVsnluXZx8';
-    const SHEETS_SCOPE     = 'https://www.googleapis.com/auth/spreadsheets';
+    const GOOGLE_SHEET_ID = '1zHokPdLhI9wUjZW-ynMfM6PfU-IeXu2azTVsnluXZx8';
+    const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 
     // Sheet tab names inside the workbook
-    const SHEET_EXPENSES   = 'logs';
+    const SHEET_EXPENSES = 'logs';
     const SHEET_CATEGORIES = 'categories';
 
 
@@ -227,8 +321,8 @@
     // ════════════════════════════════════════════
 
     const state = {
-      db:                 null,  // IndexedDB connection
-      googleAccessToken:  null,  // Set after Google sign-in
+      db: null,  // IndexedDB connection
+      googleAccessToken: null,  // Set after Google sign-in
       selectedCategoryId: 0,     // Which chip is highlighted on the Add form
     };
 
@@ -239,13 +333,13 @@
     // document.getElementById everywhere.
     // ════════════════════════════════════════════
 
-    const getEl    = (id)       => document.getElementById(id);
-    const setText  = (id, text) => { getEl(id).textContent = text; };
-    const setHTML  = (id, html) => { getEl(id).innerHTML   = html; };
-    const getValue = (id)       => getEl(id).value;
-    const setValue = (id, val)  => { getEl(id).value = val; };
-    const disable  = (id)       => { getEl(id).disabled = true; };
-    const enable   = (id)       => { getEl(id).disabled = false; };
+    const getEl = (id) => document.getElementById(id);
+    const setText = (id, text) => { getEl(id).textContent = text; };
+    const setHTML = (id, html) => { getEl(id).innerHTML = html; };
+    const getValue = (id) => getEl(id).value;
+    const setValue = (id, val) => { getEl(id).value = val; };
+    const disable = (id) => { getEl(id).disabled = true; };
+    const enable = (id) => { getEl(id).disabled = false; };
 
 
     // ════════════════════════════════════════════
@@ -259,7 +353,7 @@
     function showToast(message, isError = false) {
       const el = getEl('toast');
       el.textContent = message;
-      el.className   = 'show' + (isError ? ' error' : '');
+      el.className = 'show' + (isError ? ' error' : '');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => { el.className = ''; }, 2800);
     }
@@ -284,7 +378,7 @@
 
       // Side effects per tab
       if (tabName === 'settings') renderCategorySettings();
-      if (tabName === 'add')      getEl('expAmount').focus();
+      if (tabName === 'add') getEl('expAmount').focus();
     }
 
 
@@ -313,7 +407,7 @@
         };
 
         request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror   = (event) => reject(event.target.error);
+        request.onerror = (event) => reject(event.target.error);
       });
     }
 
@@ -321,10 +415,10 @@
     function dbRead(storeName, key) {
       return new Promise((resolve, reject) => {
         const transaction = state.db.transaction(storeName, 'readonly');
-        const store       = transaction.objectStore(storeName);
-        const request     = (key !== undefined) ? store.get(key) : store.getAll();
+        const store = transaction.objectStore(storeName);
+        const request = (key !== undefined) ? store.get(key) : store.getAll();
         request.onsuccess = () => resolve(request.result);
-        request.onerror   = () => reject(request.error);
+        request.onerror = () => reject(request.error);
       });
     }
 
@@ -332,10 +426,10 @@
     function dbWrite(storeName, record) {
       return new Promise((resolve, reject) => {
         const transaction = state.db.transaction(storeName, 'readwrite');
-        const store       = transaction.objectStore(storeName);
-        const request     = store.put(record);
+        const store = transaction.objectStore(storeName);
+        const request = store.put(record);
         request.onsuccess = () => resolve(request.result);
-        request.onerror   = () => reject(request.error);
+        request.onerror = () => reject(request.error);
       });
     }
 
@@ -343,10 +437,10 @@
     function dbDelete(storeName, key) {
       return new Promise((resolve, reject) => {
         const transaction = state.db.transaction(storeName, 'readwrite');
-        const store       = transaction.objectStore(storeName);
-        const request     = store.delete(key);
+        const store = transaction.objectStore(storeName);
+        const request = store.delete(key);
         request.onsuccess = () => resolve();
-        request.onerror   = () => reject(request.error);
+        request.onerror = () => reject(request.error);
       });
     }
 
@@ -357,11 +451,11 @@
     // know store names or key structures.
     // ════════════════════════════════════════════
 
-    const getAllExpenses   = ()   => dbRead('expenses');
-    const getAllCategories = ()   => dbRead('categories');
+    const getAllExpenses = () => dbRead('expenses');
+    const getAllCategories = () => dbRead('categories');
     const getCategoryById = (id) => dbRead('categories', id);
-    const saveExpense     = (exp) => dbWrite('expenses', exp);
-    const saveCategory    = (cat) => dbWrite('categories', cat);
+    const saveExpense = (exp) => dbWrite('expenses', exp);
+    const saveCategory = (cat) => dbWrite('categories', cat);
     const deleteCategoryById = (id) => dbDelete('categories', id);
 
     // Returns all categories sorted by ID (Misc/0 always first)
@@ -373,7 +467,7 @@
     // Returns the next available category ID (max existing + 1)
     async function getNextCategoryId() {
       const categories = await getAllCategories();
-      const highestId  = categories.reduce((max, cat) => Math.max(max, cat.id), -1);
+      const highestId = categories.reduce((max, cat) => Math.max(max, cat.id), -1);
       return highestId + 1;
     }
 
@@ -387,9 +481,9 @@
 
     function getTodayString() {
       const today = new Date();
-      const year  = today.getFullYear();
+      const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day   = String(today.getDate()).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
 
@@ -401,11 +495,11 @@
     // ════════════════════════════════════════════
 
     async function addExpense() {
-      const date     = getValue('expDate');
-      const amount   = parseFloat(getValue('expAmount'));
+      const date = getValue('expDate');
+      const amount = parseFloat(getValue('expAmount'));
       const category = state.selectedCategoryId;
 
-      if (!date)                        return showToast('Please pick a date.', true);
+      if (!date) return showToast('Please pick a date.', true);
       if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', true);
 
       const newExpense = {
@@ -461,16 +555,16 @@
       const categories = await getSortedCategories();
 
       const rowsHTML = categories.map(cat => {
-        const canDelete    = cat.id !== 0; // Misc (id=0) is permanent
+        const canDelete = cat.id !== 0; // Misc (id=0) is permanent
         const deleteButton = canDelete
-          ? `<button class="btn secondary" onclick="handleDeleteCategory(${cat.id})">✕</button>`
+          ? `<button class="btn" onclick="handleDeleteCategory(${cat.id})">✕</button>`
           : '';
 
         return `
           <div class="cat-row">
             <span class="cat-id">${cat.id}</span>
             <input type="text" id="cat-name-${cat.id}" value="${cat.name}" />
-            <button class="btn secondary" onclick="handleRenameCategory(${cat.id})">Save</button>
+            <button class="btn" onclick="handleRenameCategory(${cat.id})">Save</button>
             ${deleteButton}
           </div>
         `;
@@ -484,7 +578,7 @@
       if (!newName) return showToast('Name cannot be empty.', true);
 
       const category = await getCategoryById(categoryId);
-      category.name  = newName;
+      category.name = newName;
       await saveCategory(category);
 
       await renderCategoryChips(); // Keep chips in sync
@@ -497,8 +591,8 @@
       await deleteCategoryById(categoryId);
 
       // Reassign any expenses in this category to Misc (id=0)
-      const allExpenses       = await getAllExpenses();
-      const affectedExpenses  = allExpenses.filter(exp => exp.category === categoryId);
+      const allExpenses = await getAllExpenses();
+      const affectedExpenses = allExpenses.filter(exp => exp.category === categoryId);
       for (const expense of affectedExpenses) {
         expense.category = 0;
         await saveExpense(expense);
@@ -519,7 +613,7 @@
     }
 
     async function addCategory() {
-      const input   = getEl('newCategoryName');
+      const input = getEl('newCategoryName');
       const newName = input.value.trim();
       if (!newName) return showToast('Please enter a category name.', true);
 
@@ -592,7 +686,7 @@
     // Read all data rows from a sheet (skips the header row)
     async function readSheetRows(sheetName, columnRange) {
       const response = await sheetsApiRequest(`/values/${sheetName}!${columnRange}`);
-      const allRows  = response.values || [];
+      const allRows = response.values || [];
       return allRows.slice(1); // Row 0 is the header
     }
 
@@ -603,9 +697,9 @@
         .filter(row => row.length >= 4)
         .map(row => ({
           timestamp: row[0],
-          date:      row[1],
-          amount:    parseFloat(row[2]),
-          category:  parseInt(row[3]),
+          date: row[1],
+          amount: parseFloat(row[2]),
+          category: parseInt(row[3]),
         }));
     }
 
@@ -615,7 +709,7 @@
       return rows
         .filter(row => row.length >= 2)
         .map(row => ({
-          id:   parseInt(row[0]),
+          id: parseInt(row[0]),
           name: row[1],
         }));
     }
@@ -631,7 +725,7 @@
     function mergeByKey(localItems, remoteItems, keyFn) {
       const merged = new Map();
       remoteItems.forEach(item => merged.set(keyFn(item), item)); // Remote goes in first
-      localItems.forEach(item  => merged.set(keyFn(item), item)); // Local overwrites
+      localItems.forEach(item => merged.set(keyFn(item), item)); // Local overwrites
       return Array.from(merged.values());
     }
 
@@ -647,23 +741,23 @@
     async function syncToSheets() {
       // Step 1: Pull remote data
       setSyncStatus('Pulling from Google Sheets...');
-      const remoteExpenses   = await fetchExpensesFromSheet();
+      const remoteExpenses = await fetchExpensesFromSheet();
       const remoteCategories = await fetchCategoriesFromSheet();
 
       // Step 2: Merge with local data
-      const localExpenses    = await getAllExpenses();
-      const localCategories  = await getAllCategories();
+      const localExpenses = await getAllExpenses();
+      const localCategories = await getAllCategories();
 
-      const mergedExpenses   = mergeByKey(localExpenses, remoteExpenses, e => e.timestamp);
+      const mergedExpenses = mergeByKey(localExpenses, remoteExpenses, e => e.timestamp);
       const mergedCategories = mergeByKey(localCategories, remoteCategories, c => c.id);
 
       // Sort for consistency
-      mergedExpenses.sort((a, b)   => new Date(a.timestamp) - new Date(b.timestamp));
+      mergedExpenses.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       mergedCategories.sort((a, b) => a.id - b.id);
 
       // Step 3: Persist merged data locally
       setSyncStatus('Saving merged data locally...');
-      for (const expense  of mergedExpenses)   await saveExpense(expense);
+      for (const expense of mergedExpenses) await saveExpense(expense);
       for (const category of mergedCategories) await saveCategory(category);
       await renderCategoryChips();
 
@@ -679,7 +773,7 @@
         ...mergedCategories.map(c => [c.id, c.name]),
       ];
 
-      await overwriteSheet(SHEET_EXPENSES,   expenseRows);
+      await overwriteSheet(SHEET_EXPENSES, expenseRows);
       await overwriteSheet(SHEET_CATEGORIES, categoryRows);
 
       const time = new Date().toLocaleTimeString();
@@ -702,8 +796,8 @@
 
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: GOOGLE_CLIENT_ID,
-          scope:     SHEETS_SCOPE,
-          callback:  async (response) => {
+          scope: SHEETS_SCOPE,
+          callback: async (response) => {
             if (response.error) {
               showToast('Sign-in failed: ' + response.error, true);
               enable('syncBtn');
