@@ -510,6 +510,7 @@
       };
 
       await saveExpense(newExpense);
+      localStorage.setItem('lastCategoryId', category);
 
       // Keep date + category for quick repeat entry, just clear the amount
       setValue('expAmount', '');
@@ -542,7 +543,8 @@
 
     function selectCategory(categoryId) {
       state.selectedCategoryId = categoryId;
-      renderCategoryChips(); // Re-render to move the "active" highlight
+      localStorage.setItem('lastCategoryId', categoryId);
+      renderCategoryChips();
     }
 
 
@@ -857,6 +859,9 @@
           addExpense();
         }
       });
+
+      const savedCategoryId = parseInt(localStorage.getItem('lastCategoryId') ?? '0');
+      state.selectedCategoryId = savedCategoryId;
 
       await renderCategoryChips();
       getEl('expAmount').focus();
