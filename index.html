@@ -255,6 +255,40 @@
     .add-cat-row input {
       flex: 1;
     }
+
+    /* ── History Panel ── */
+    .history-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .history-status {
+      font-size: 11px;
+      color: #555;
+      margin-bottom: 16px;
+      min-height: 16px;
+    }
+    .expense-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .expense-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 2px solid #2e2e2e;
+      background: #1a1a1a;
+    }
+    .expense-row.deleted {
+      opacity: 0.3;
+      text-decoration: line-through;
+    }
+    .expense-date   { font-size: 12px; color: #666; width: 90px; flex-shrink: 0; }
+    .expense-amount { font-size: 14px; width: 80px; flex-shrink: 0; text-align: right; }
+    .expense-cat    { font-size: 12px; color: #888; flex: 1; }
+    .expense-row .btn { padding: 6px 10px; font-size: 11px; flex-shrink: 0; }
   </style>
 </head>
 
@@ -263,6 +297,7 @@
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('add')">Add Expense</button>
     <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+    <button class="tab-btn" onclick="switchTab('history')">History</button>
   </div>
 
   <!-- Add Expense Panel -->
@@ -273,6 +308,7 @@
     </div>
     <div class="field">
       <label>Amount (₹)</label>
+
       <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" />
     </div>
     <div class="field">
@@ -294,6 +330,16 @@
       <input type="text" id="newCategoryName" placeholder="New category name..." />
       <button class="btn" onclick="addCategory()">Add</button>
     </div>
+  </div>
+
+  <!-- History Panel -->
+  <div id="panel-history" class="panel">
+    <div class="history-actions">
+      <button class="btn" onclick="loadHistory()">↻ Refresh</button>
+      <button class="btn" id="saveHistoryBtn" onclick="saveHistory()" disabled>Save Changes</button>
+    </div>
+    <div class="history-status" id="historyStatus"></div>
+    <div class="expense-list" id="expenseList"></div>
   </div>
 
   <div id="toast"></div>
@@ -365,7 +411,7 @@
     // ════════════════════════════════════════════
 
     function switchTab(tabName) {
-      const tabOrder = ['add', 'settings'];
+      const tabOrder = ['add', 'settings', 'history'];
 
       // Highlight the correct tab button
       document.querySelectorAll('.tab-btn').forEach((btn, index) => {
@@ -379,6 +425,7 @@
       // Side effects per tab
       if (tabName === 'settings') renderCategorySettings();
       if (tabName === 'add') getEl('expAmount').focus();
+      if (tabName === 'history') loadHistory();
     }
 
 
@@ -832,6 +879,111 @@
 
     function setSyncStatus(message) {
       setText('syncStatus', message);
+    }
+
+    // ════════════════════════════════════════════
+    // HISTORY PANEL
+    // Shows all expenses with delete capability.
+    // Syncs on load. Changes only pushed on Save.
+    // ════════════════════════════════════════════
+
+    // Tracks which timestamps have been marked for deletion this session
+    const pendingDeletions = new Set();
+
+    async function loadHistory() {
+      setHistoryStatus('Syncing...');
+      disable('saveHistoryBtn');
+      pendingDeletions.clear();
+
+      // Sync first so we're working with the latest data
+      try {
+        await syncToSheets();
+      } catch (error) {
+        setHistoryStatus('Sync failed — showing local data only.');
+      }
+
+      await renderExpenseList();
+    }
+
+    async function renderExpenseList() {
+      const expenses   = await getAllExpenses();
+      const categories = await getAllCategories();
+
+      // Build a quick id→name lookup map for categories
+      const categoryNameById = new Map(categories.map(c => [c.id, c.name]));
+
+      // Sort newest first
+      expenses.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      if (expenses.length === 0) {
+        setHistoryStatus('No expenses yet.');
+        setHTML('expenseList', '');
+        return;
+      }
+
+      setHistoryStatus(`${expenses.length} expense(s). Unsaved deletions shown in strikethrough.`);
+
+      const rowsHTML = expenses.map(expense => {
+        const categoryName = categoryNameById.get(expense.category) ?? 'Unknown';
+        const isDeleted    = pendingDeletions.has(expense.timestamp);
+
+        return `
+          <div class="expense-row ${isDeleted ? 'deleted' : ''}" id="row-${expense.timestamp}">
+            <span class="expense-date">${expense.date}</span>
+            <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+            <span class="expense-cat">${categoryName}</span>
+            <button class="btn" onclick="toggleDeleteExpense('${expense.timestamp}')">
+              ${isDeleted ? 'Undo' : '✕'}
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      setHTML('expenseList', rowsHTML);
+    }
+
+    function toggleDeleteExpense(timestamp) {
+      // Toggle the deletion mark — clicking ✕ marks it, clicking Undo unmarks it
+      if (pendingDeletions.has(timestamp)) {
+        pendingDeletions.delete(timestamp);
+      } else {
+        pendingDeletions.add(timestamp);
+      }
+
+      // Enable Save only if there's something to save
+      const hasPendingDeletions = pendingDeletions.size > 0;
+      getEl('saveHistoryBtn').disabled = !hasPendingDeletions;
+
+      renderExpenseList();
+    }
+
+    async function saveHistory() {
+      if (pendingDeletions.size === 0) return;
+
+      disable('saveHistoryBtn');
+      setHistoryStatus(`Deleting ${pendingDeletions.size} expense(s)...`);
+
+      // Delete all marked expenses from local IndexedDB
+      for (const timestamp of pendingDeletions) {
+        await dbDelete('expenses', timestamp);
+      }
+      pendingDeletions.clear();
+
+      // Push the updated local state up to Sheets
+      setHistoryStatus('Saving to Google Sheets...');
+      try {
+        await syncToSheets();
+        showToast('Changes saved!');
+      } catch (error) {
+        showToast('Saved locally but Sheets sync failed.', true);
+      }
+
+      await renderExpenseList();
+      enable('saveHistoryBtn');
+    }
+
+    function setHistoryStatus(message) {
+      setText('historyStatus', message);
     }
 
 
