@@ -161,9 +161,21 @@
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
     }
-    .btn:hover { background: #e8e8e8; color: #0f0f0f; }
-    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .btn:disabled:hover { background: transparent; color: #e8e8e8; }
+
+    .btn:hover {
+      background: #e8e8e8;
+      color: #0f0f0f;
+    }
+
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .btn:disabled:hover {
+      background: transparent;
+      color: #e8e8e8;
+    }
 
     /* ── Action Row ── */
     .action-row {
@@ -262,17 +274,20 @@
       gap: 10px;
       margin-bottom: 24px;
     }
+
     .history-status {
       font-size: 11px;
       color: #555;
       margin-bottom: 16px;
       min-height: 16px;
     }
+
     .expense-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
+
     .expense-row {
       display: flex;
       align-items: center;
@@ -281,14 +296,37 @@
       border: 2px solid #2e2e2e;
       background: #1a1a1a;
     }
+
     .expense-row.deleted {
       opacity: 0.3;
       text-decoration: line-through;
     }
-    .expense-date   { font-size: 12px; color: #666; width: 90px; flex-shrink: 0; }
-    .expense-amount { font-size: 14px; width: 80px; flex-shrink: 0; text-align: right; }
-    .expense-cat    { font-size: 12px; color: #888; flex: 1; }
-    .expense-row .btn { padding: 6px 10px; font-size: 11px; flex-shrink: 0; }
+
+    .expense-date {
+      font-size: 12px;
+      color: #666;
+      width: 90px;
+      flex-shrink: 0;
+    }
+
+    .expense-amount {
+      font-size: 14px;
+      width: 80px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .expense-cat {
+      font-size: 12px;
+      color: #888;
+      flex: 1;
+    }
+
+    .expense-row .btn {
+      padding: 6px 10px;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 
@@ -726,7 +764,7 @@
     async function overwriteSheet(sheetName, rows) {
       await sheetsApiRequest(`/values/${sheetName}!A1:Z10000:clear`, 'POST');
       await sheetsApiRequest(
-        `/values/${sheetName}!A1?valueInputOption=RAW`,
+        `/values/${sheetName}!A1?valueInputOption=USER_ENTERED`,  // was RAW
         'PUT',
         { values: rows }
       );
@@ -891,10 +929,7 @@
     const pendingDeletions = new Set();
 
     async function loadHistory() {
-      setHistoryStatus('Loading...');
-      disable('saveHistoryBtn');
-      pendingDeletions.clear();
-      await renderExpenseList();
+      await handleHistoryRefresh();
     }
 
     async function handleHistoryRefresh() {
@@ -935,7 +970,7 @@
     }
 
     async function renderExpenseList() {
-      const expenses   = await getAllExpenses();
+      const expenses = await getAllExpenses();
       const categories = await getAllCategories();
 
       // Build a quick id→name lookup map for categories
@@ -954,7 +989,7 @@
 
       const rowsHTML = expenses.map(expense => {
         const categoryName = categoryNameById.get(expense.category) ?? 'Unknown';
-        const isDeleted    = pendingDeletions.has(expense.timestamp);
+        const isDeleted = pendingDeletions.has(expense.timestamp);
 
         return `
           <div class="expense-row ${isDeleted ? 'deleted' : ''}" id="row-${expense.timestamp}">
@@ -988,10 +1023,10 @@
 
     // Pushes current local data to Sheets without pulling or merging first
     async function pushLocalDataToSheets() {
-      const expenses   = await getAllExpenses();
+      const expenses = await getAllExpenses();
       const categories = await getAllCategories();
 
-      expenses.sort((a, b)   => new Date(a.timestamp) - new Date(b.timestamp));
+      expenses.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       categories.sort((a, b) => a.id - b.id);
 
       const expenseRows = [
@@ -1003,7 +1038,7 @@
         ...categories.map(c => [c.id, c.name]),
       ];
 
-      await overwriteSheet(SHEET_EXPENSES,   expenseRows);
+      await overwriteSheet(SHEET_EXPENSES, expenseRows);
       await overwriteSheet(SHEET_CATEGORIES, categoryRows);
     }
 
