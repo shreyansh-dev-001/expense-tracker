@@ -335,7 +335,7 @@
   <!-- History Panel -->
   <div id="panel-history" class="panel">
     <div class="history-actions">
-      <button class="btn" onclick="loadHistory()">↻ Refresh</button>
+      <button class="btn" onclick="handleHistoryRefresh()">↻ Refresh</button>
       <button class="btn" id="saveHistoryBtn" onclick="saveHistory()" disabled>Save Changes</button>
     </div>
     <div class="history-status" id="historyStatus"></div>
@@ -891,17 +891,46 @@
     const pendingDeletions = new Set();
 
     async function loadHistory() {
-      setHistoryStatus('Syncing...');
+      setHistoryStatus('Loading...');
+      disable('saveHistoryBtn');
+      pendingDeletions.clear();
+      await renderExpenseList();
+    }
+
+    async function handleHistoryRefresh() {
       disable('saveHistoryBtn');
       pendingDeletions.clear();
 
-      // Sync first so we're working with the latest data
+      if (!state.googleAccessToken) {
+        setHistoryStatus('Waiting for Google sign-in...');
+
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: SHEETS_SCOPE,
+          callback: async (response) => {
+            if (response.error) {
+              setHistoryStatus('Sign-in failed. Showing local data.');
+              await renderExpenseList();
+              return;
+            }
+            state.googleAccessToken = response.access_token;
+            await runHistorySync();
+          },
+        });
+
+        tokenClient.requestAccessToken();
+      } else {
+        await runHistorySync();
+      }
+    }
+
+    async function runHistorySync() {
+      setHistoryStatus('Syncing...');
       try {
         await syncToSheets();
       } catch (error) {
-        setHistoryStatus('Sync failed — showing local data only.');
+        setHistoryStatus('Sync failed — showing local data.');
       }
-
       await renderExpenseList();
     }
 
