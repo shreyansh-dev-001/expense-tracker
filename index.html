@@ -986,22 +986,41 @@
       renderExpenseList();
     }
 
+    // Pushes current local data to Sheets without pulling or merging first
+    async function pushLocalDataToSheets() {
+      const expenses   = await getAllExpenses();
+      const categories = await getAllCategories();
+
+      expenses.sort((a, b)   => new Date(a.timestamp) - new Date(b.timestamp));
+      categories.sort((a, b) => a.id - b.id);
+
+      const expenseRows = [
+        ['timestamp', 'date', 'amount', 'category'],
+        ...expenses.map(e => [e.timestamp, e.date, e.amount, e.category]),
+      ];
+      const categoryRows = [
+        ['id', 'name'],
+        ...categories.map(c => [c.id, c.name]),
+      ];
+
+      await overwriteSheet(SHEET_EXPENSES,   expenseRows);
+      await overwriteSheet(SHEET_CATEGORIES, categoryRows);
+    }
+
     async function saveHistory() {
       if (pendingDeletions.size === 0) return;
 
       disable('saveHistoryBtn');
       setHistoryStatus(`Deleting ${pendingDeletions.size} expense(s)...`);
 
-      // Delete all marked expenses from local IndexedDB
       for (const timestamp of pendingDeletions) {
         await dbDelete('expenses', timestamp);
       }
       pendingDeletions.clear();
 
-      // Push the updated local state up to Sheets
       setHistoryStatus('Saving to Google Sheets...');
       try {
-        await syncToSheets();
+        await pushLocalDataToSheets();
         showToast('Changes saved!');
       } catch (error) {
         showToast('Saved locally but Sheets sync failed.', true);
